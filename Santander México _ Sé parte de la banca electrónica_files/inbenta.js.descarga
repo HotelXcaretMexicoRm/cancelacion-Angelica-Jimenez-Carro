@@ -1,0 +1,197 @@
+
+var clickInbenta = "";
+var inbentaDataGet = {"iname":"c2FudGFuZGVyX214X3dpZGdldA==","dev":false,"staging":false,"display_welcome_message":true,"lateral_banner":{"position":{"left":false,"x_offset":"0","top":true,"y_offset":"36px"}},"banner":"0"};
+
+(function() {
+  var data = {"iname":"c2FudGFuZGVyX214X3dpZGdldA==","dev":false,"staging":false,"display_welcome_message":true,"lateral_banner":{"position":{"left":false,"x_offset":"0","top":true,"y_offset":"36px"}},"banner":"0"};
+  var pluses = /\+/g;
+
+  var decode = function(s) {
+    return decodeURIComponent(s.replace(pluses, ' '));
+  };
+
+  var converted = function(s) {
+    if ( s.indexOf('"') === 0 ) {
+      // This is a quoted cookie as according to RFC2068, unescape
+      s = s.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    }
+    return s;
+  };
+
+  var getCookie = function(key) {
+    if ( !key )
+      return null;
+    var cookies = document.cookie.split('; ');
+    var result = null;
+    for (var i = 0, l = cookies.length; i < l; i++) {
+      var parts = cookies[i].split('=');
+      var name = decode(parts.shift());
+      var cookie = decode(parts.join('='));
+      if ( key === name ) {
+        result = converted(cookie);
+        break;
+      }
+    }
+    return result;
+  };
+
+  var setCookie = function(key, value, options) {
+    options = options || {};
+    value = String(value);
+    document.cookie = [
+      encodeURIComponent(key),
+      '=',
+      encodeURIComponent(value),
+      options.path ? '; path=' + options.path : '',
+      options.domain ? '; domain=' + options.domain : '',
+      options.secure ? '; secure' : ''
+    ].join('');
+  };
+
+  var insertLink = function(href) {
+    var node = document.createElement('link'), s;
+    node.rel = 'stylesheet';
+    node.href = href;
+    if ( document.getElementsByTagName('link')[0] ) {
+      s = (document.getElementsByTagName('link')[0]).parentNode;
+    }
+    else {
+      s = document.head || document.querySelector('head') || document.documentElement;
+    }
+    s.appendChild(node);
+  };
+
+  var insertScript = function(src, callback) {
+    var node = document.createElement('script');
+    node.type = 'text/javascript';
+    node.async = 1;
+    node.src = src;
+    node.onload = node.onreadystatechange = function(_, isAbort) {
+      if ( isAbort || !node.readyState || /loaded|complete/.test(node.readyState) ) {
+        // Handle memory leak in IE
+        node.onload = node.onreadystatechange = null;
+        // Remove the node
+        if ( node.parentNode ) {
+          node.parentNode.removeChild(node);
+        }
+        // Dereference the node
+        node = null;
+        // Callback if not abort
+        if ( !isAbort ) {
+          callback();
+        }
+      }
+    };
+    var s = document.getElementsByTagName('script')[0];
+    s.parentNode.appendChild(node);
+  };
+
+  var insertHyperchat = function(script, callback) {
+    var dom = document.createElement('script');
+    dom.onload = callback;
+    dom.type = 'text/javascript';
+    dom.src = script;
+    document.getElementsByTagName('head')[0].appendChild(dom, document.currentScript);
+  }
+
+  var insertInbenta = function() {
+
+    // Insert Hyperchat SDK
+    insertHyperchat('https://sdk.inbenta.chat/1.30.0/icf.sdk.js', function() {
+      console.log('Hyperchat loaded');
+    });
+
+    var baseUrl = 'https://santander-mx-widget.inbenta.com/';
+        data['baseURL'] = baseUrl;
+    
+    var profile = parseInt(1);
+    var parameters = '?p=' + profile + '&1631294074';
+
+    // Insert autocompleter script
+    var autocompleterUrl = '';
+    if ( data['dev'] === true )
+      autocompleterUrl += '../../../santander_mx_autocompleter/public';
+    else if ( data['staging'] === true )
+      autocompleterUrl += '//santander-mx-autocompleter-staging.inbenta.com';
+    else
+      autocompleterUrl += '//santander-mx-autocompleter.inbenta.com';
+
+    autocompleterUrl += '/jsonp/inbenta.js' + parameters;
+    insertScript(autocompleterUrl, function() {
+      insertLink(baseUrl + 'assets/css/inbenta.css' + parameters);
+      insertScript(baseUrl + 'assets/js/inbenta.js' + parameters, function() {
+        /** Removed window.Inbenta.baseURL due IE7 compatibility **/
+        //window.Inbenta.baseURL = baseUrl;
+        setTimeout(function(){
+          main(data);
+        }, 1000);
+      });
+    });
+  };
+
+  var manageClick = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    clickInbenta = ".inbenta-help[name='" + e.target.name + "']";
+    removeInbentaLoaders();
+    insertInbenta();
+  };
+
+  var listenClicks = function() {
+    //Add event click in to a class
+    var classnameClick = document.getElementsByClassName("inbenta-help");
+    if ( classnameClick != null && classnameClick.length > 0 ) {
+      for (var i = 0; i < classnameClick.length; i++) {
+        classnameClick[i].addEventListener('click', manageClick, false);
+      }
+      return true;
+    } else {
+      console.warn("Help button(s) missing!");
+      return false;
+    }
+  };
+
+  var manageFocus = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    clickInbenta = ".inbenta-help[name='inbenta-results']";
+    removeInbentaLoaders();
+    insertInbenta();
+  };
+
+  var listenAutocompleter = function() {
+    //add even focus in to a id
+    var focusElement = document.getElementById("inbenta-autocompleter");
+    if ( focusElement != null ) {
+      focusElement.addEventListener("focus", manageFocus, true);
+      return true;
+    }
+    else {
+      console.warn('missing autocompleter');
+      return false;
+    }
+  };
+
+  if ( data['banner']=='true' ) {
+    insertInbenta();
+  }
+  else {
+    var removeInbentaLoaders = function() {
+      var focusElement =  document.getElementById("inbenta-autocompleter");
+      var classnameClick = document.getElementsByClassName("inbenta-help");
+      if ( focusElement != null )
+        focusElement.removeEventListener("focus", manageFocus, true);
+      if (classnameClick != null) {
+        for (var i = 0; i < classnameClick.length; i++) {
+          classnameClick[i].removeEventListener('click', manageClick, false);
+        }
+      }
+    };
+    // try to addEventListeners. tries agan after a shor delay if elements are missing;
+    if ( !listenClicks() )
+      setTimeout(function() {listenClicks();}, 250);
+    if ( !listenAutocompleter() )
+      setTimeout(function() {listenAutocompleter();}, 250);
+  }
+
+})();
